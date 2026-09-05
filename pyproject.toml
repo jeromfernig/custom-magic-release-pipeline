@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "custom-magic-release-pipeline"
+version = "0.1.0"
+description = "Proof-of-concept release pipeline for a custom Magic: The Gathering set."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "streamlit>=1.36",
+  "pydantic>=2",
+  "requests>=2.31",
+  "google-api-python-client>=2.0",
+  "google-auth>=2.0",
+  "google-auth-oauthlib>=1.0",
+  "openai>=1.0",
+  "PyYAML>=6.0",
+  "reportlab>=4.0",
+  "Pillow>=10.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+mtg-pipeline-auth-google = "mtg_pipeline.auth_google:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

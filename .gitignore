@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Local secrets and OAuth tokens
+credentials.json
+token.json
+.env
+config.local.yaml
+.sheet-history.json
+
+# Generated releases
+releases/
+
+# Local source artwork and generated placeholders
+/artwork/

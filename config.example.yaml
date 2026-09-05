@@ -1,0 +1,79 @@
+source:
+  spreadsheet_id: ""
+  set_worksheet: "Set"
+  cards_worksheet: "Cards"
+  credentials_path: "credentials.json"
+  token_path: "token.json"
+
+columns:
+  id: "id"
+  name: "name"
+  mana_cost: "mana_cost"
+  mana_value: "mana_value"
+  super_types: "supertypes"
+  card_types: "card_types"
+  subtypes: "subtypes"
+  type_line: "type_line"
+  oracle_text: "oracle_text"
+  flavor_text: "flavor_text"
+  comment_text: "comment_text"
+  art_prompt: "art_prompt"
+  power: "power"
+  toughness: "toughness"
+  loyalty: "loyalty"
+  rarity: "rarity"
+  artist: "artist"
+  artwork_url: "artwork_url"
+  layout: "layout"
+  render_profile: "render_profile"
+  include: "include"
+
+renderer:
+  base_url: "http://localhost:8080"
+  format: "PNG"
+  scale: 3
+  render_limit: 10
+
+paths:
+  release_root: "releases"
+  artwork_root: "artwork"
+
+print:
+  page_size: "A4"
+  orientation: "landscape"
+  card_width_mm: 63
+  card_height_mm: 88
+  copies_by_rarity:
+    common: 1
+    uncommon: 1
+    rare: 1
+    mythic: 1
+    land: 1
+
+draft:
+  booster_layout:
+    layouts:
+      Default:
+        weight: 1
+        slots:
+          Common: 10
+          Uncommon: 3
+          RareMythic: 1
+    predeterminedLayouts:
+      - RareMythic
+
+images:
+  public_image_base_url: "https://example.com/custom-magic/"
+  generated_artist_credit: "OpenAI gpt-image-1"
+  generation_model: "gpt-image-1"
+  generation_size: "1536x1024"
+  generation_quality: "medium"
+  generation_retry_count: 1
+  default_art_box_mm: "53 mm x 39 mm"
+
+render_profiles:
+  standard:
+    renderer_options: {}
+  fullart_colorless:
+    renderer_options:
+      frame: "fullart_colorless"
