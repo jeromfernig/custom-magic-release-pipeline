@@ -1,0 +1,12 @@
+{
+  "set_id": "pokemon-mtg-set",
+  "set_name": "Pokemon Evolutions",
+  "set_code": "PKM",
+  "version": "0.3.0",
+  "release_date": null,
+  "draft_mode": true,
+  "set_icon_mythic": "https://pub-54dcf9d7a89341df85a767696e21803c.r2.dev/set_icons/pokemon_set_icon_mythic.png",
+  "set_icon_rare": "https://pub-54dcf9d7a89341df85a767696e21803c.r2.dev/set_icons/pokemon_set_icon_rare.png",
+  "set_icon_uncommon": "https://pub-54dcf9d7a89341df85a767696e21803c.r2.dev/set_icons/pokemon_set_icon_uncommon.png",
+  "set_icon_common": "https://pub-54dcf9d7a89341df85a767696e21803c.r2.dev/set_icons/pokemon_set_icon_common.png"
+}

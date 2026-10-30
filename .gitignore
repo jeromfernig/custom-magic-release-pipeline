@@ -21,3 +21,7 @@ releases/
 
 # Local source artwork and generated placeholders
 /artwork/
+
+# Release-independent rendered card cache
+/rendered/
+.cache/

@@ -6,6 +6,8 @@ from mtg_pipeline.models import CardDefinition, SetDefinition
 
 
 def public_image_url(base_url: str, set_def: SetDefinition, card: CardDefinition) -> str:
+    if card.rendered_public_url:
+        return card.rendered_public_url
     if not base_url:
         return ""
     base = base_url.rstrip("/") + "/"

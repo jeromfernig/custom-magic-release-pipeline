@@ -34,7 +34,7 @@ def test_canonical_model_parsing() -> None:
     assert by_name["Sky Monarch"].type_line == "Legendary Creature - Bird Noble"
     assert by_name["Verdant Seedling"].mana_cost == "{G}"
     assert by_name["Verdant Seedling"].collector_number == "004"
-    assert by_name["Verdant Seedling"].rendered_image_filename == "004-verdant-seedling.png"
+    assert by_name["Verdant Seedling"].rendered_image_filename == "004-verdant-seedling.jpg"
 
 
 def test_source_scopes_accept_yaml_string_forms() -> None:
@@ -179,6 +179,25 @@ def test_validation_warns_when_art_source_missing() -> None:
     assert any("placeholder artwork will be used" in issue.message for issue in result.warnings)
 
 
+def test_validation_allows_vehicle_power_toughness_and_requires_both() -> None:
+    source = sample_source()
+    vehicle = source.card_rows[0]
+    vehicle["card_types"] = "Artifact"
+    vehicle["subtypes"] = "Vehicle"
+    vehicle["power"] = "3"
+    vehicle["toughness"] = "3"
+    config = AppConfig()
+    config.render_profiles["fullart_colorless"] = config.render_profiles["standard"]
+
+    result = validate_source(source, config)
+
+    assert result.ok
+    assert not any("power/toughness supplied for noncreature" in issue.message for issue in result.warnings)
+    vehicle["toughness"] = ""
+    result = validate_source(source, config)
+    assert any("Vehicle 'Verdant Seedling' requires both power and toughness" in issue.message for issue in result.errors)
+
+
 def test_filename_generation() -> None:
     assert safe_card_stem("001A", "Mewtwo's Test Card!") == "001a-mewtwo-s-test-card"
 
@@ -200,6 +219,8 @@ def test_draftmancer_export(tmp_path) -> None:
     assert text.startswith("[CustomCards]")
     assert "[Common]" in text
     assert "Verdant Seedling (PKM) 004" in text
+    settings = json.loads(text.split("[Settings]\n", 1)[1].split("\n[Common]", 1)[0])
+    assert "predeterminedLayouts" not in settings
 
 
 def test_cubecobra_export(tmp_path) -> None:
@@ -251,4 +272,4 @@ def test_public_image_url_uses_stable_set_id() -> None:
     config.images.public_image_base_url = "https://cdn.example/custom"
     set_def, cards = canonicalize(sample_source(), config)
     by_name = {card.name: card for card in cards}
-    assert public_image_url(config.images.public_image_base_url, set_def, by_name["Verdant Seedling"]) == "https://cdn.example/custom/pokemon-mtg-set/0.3.0/cards/004-verdant-seedling.png"
+    assert public_image_url(config.images.public_image_base_url, set_def, by_name["Verdant Seedling"]) == "https://cdn.example/custom/pokemon-mtg-set/0.3.0/cards/004-verdant-seedling.jpg"

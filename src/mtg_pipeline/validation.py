@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from mtg_pipeline.config import AppConfig
 from mtg_pipeline.mana import normalize_mana_cost
 from mtg_pipeline.models import SourceData
+from mtg_pipeline.linked_cards import resolve_rows
 
 VALID_RARITIES = {"common", "uncommon", "rare", "mythic", "land"}
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
@@ -70,6 +71,12 @@ def _validate_set_metadata(metadata: dict[str, object], result: ValidationResult
 
 def _validate_card_rows(rows: list[dict[str, object]], config: AppConfig, result: ValidationResult) -> None:
     mapping = config.columns
+    try:
+        rows = resolve_rows(rows, mapping)
+    except ValueError as exc:
+        result.errors.append(ValidationIssue(severity="error", message=str(exc)))
+        return
+    result.card_count = sum(_text(row.get(mapping.record_type)) != "linked_face" for row in rows)
     required = [
         mapping.id,
         mapping.name,
@@ -90,8 +97,10 @@ def _validate_card_rows(rows: list[dict[str, object]], config: AppConfig, result
     name_counter: Counter[str] = Counter()
     rarity_counter: Counter[str] = Counter()
     profiles = set(config.render_profiles.keys())
+    inset_ids = {_text(row.get(mapping.link_id)) for row in rows if _text(row.get(mapping.link_type)) == "prepare"}
 
     for index, row in enumerate(rows, start=2):
+        index = int(row.get("__row_number") or index)
         if _is_falseish(row.get(mapping.include)):
             continue
         row_id = _text(row.get(mapping.id))
@@ -119,7 +128,7 @@ def _validate_card_rows(rows: list[dict[str, object]], config: AppConfig, result
 
         if rarity and rarity not in VALID_RARITIES:
             result.errors.append(ValidationIssue(severity="error", row_number=index, message=f"Cards row {index}: rarity '{rarity}' is invalid. Expected common, uncommon, rare, mythic, or land."))
-        elif rarity:
+        elif rarity and _text(row.get(mapping.record_type)) != "linked_face":
             rarity_counter[rarity] += 1
 
         if artwork_url:
@@ -130,7 +139,7 @@ def _validate_card_rows(rows: list[dict[str, object]], config: AppConfig, result
                 result.errors.append(ValidationIssue(severity="error", row_number=index, message=f"Cards row {index}: artwork_url '{artwork_url}' must be an http/https URL."))
             elif not parsed.scheme and Path(artwork_url).is_absolute():
                 result.errors.append(ValidationIssue(severity="error", row_number=index, message=f"Cards row {index}: artwork_url local paths must be relative to the project root."))
-        elif art_prompt:
+        elif art_prompt or row_id in inset_ids:
             pass
         else:
             result.warnings.append(ValidationIssue(severity="warning", row_number=index, message=f"Cards row {index}: neither artwork_url nor art_prompt is filled for '{name}'; placeholder artwork will be used."))
@@ -147,7 +156,25 @@ def _validate_card_rows(rows: list[dict[str, object]], config: AppConfig, result
         if name:
             name_counter[name] += 1
 
-        if "Creature" not in type_line and (_text(row.get(mapping.power)) or _text(row.get(mapping.toughness))):
+        power = _text(row.get(mapping.power))
+        toughness = _text(row.get(mapping.toughness))
+        if _has_type_word(type_line, "Battle") and not _text(row.get(mapping.battle_defense)):
+            result.errors.append(ValidationIssue(severity="error", row_number=index, message=f"{row_id}: Battle requires battle_defense."))
+        if _text(row.get(mapping.record_type)) == "linked_face":
+            if _has_type_word(type_line, "Creature") and (not power or not toughness):
+                result.errors.append(ValidationIssue(severity="error", row_number=index, message=f"{row_id}: creature face requires power and toughness."))
+            if _has_type_word(type_line, "Planeswalker") and not _text(row.get(mapping.loyalty)):
+                result.errors.append(ValidationIssue(severity="error", row_number=index, message=f"{row_id}: planeswalker face requires loyalty."))
+        indicator = _text(row.get(mapping.color_indicator)).replace(",", " ").split()
+        if any(color.upper() not in set("WUBRG") for color in indicator):
+            result.errors.append(ValidationIssue(severity="error", row_number=index, message=f"{row_id}: color_indicator must use W, U, B, R, G."))
+        is_vehicle = _has_type_word(_text(row.get(mapping.subtypes)) or type_line, "Vehicle")
+        if is_vehicle and (not power or not toughness):
+            result.errors.append(ValidationIssue(
+                severity="error", row_number=index,
+                message=f"Cards row {index}: Vehicle '{name}' requires both power and toughness.",
+            ))
+        elif not is_vehicle and "Creature" not in type_line and (power or toughness):
             result.warnings.append(ValidationIssue(severity="warning", row_number=index, message=f"Cards row {index}: power/toughness supplied for noncreature '{name}'."))
 
     for name, count in name_counter.items():
@@ -162,6 +189,10 @@ def _format_issue(issue: ValidationIssue) -> str:
 
 def _text(value: object) -> str:
     return "" if value is None else str(value).strip()
+
+
+def _has_type_word(value: str, word: str) -> bool:
+    return bool(re.search(rf"\b{re.escape(word)}\b", value, flags=re.IGNORECASE))
 
 
 def _is_falseish(value: object) -> bool:

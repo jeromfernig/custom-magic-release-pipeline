@@ -25,6 +25,7 @@ def source_mocks(source, state="valid"):
 
 def test_ui_defaults_and_generation_failure_warning(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MTGDESIGN_LAVAREL_SESSION", "prefilled-session")
     source = sample_source()
     source.card_rows = source.card_rows[:1]
     source.card_rows[0]["artwork_url"] = ""
@@ -34,15 +35,22 @@ def test_ui_defaults_and_generation_failure_warning(tmp_path, monkeypatch):
         source_mocks(source) as load,
         patch("mtg_pipeline.artwork.preparer.OpenAIImageGenerator.generate", side_effect=RuntimeError("Image service unavailable")) as generate,
     ):
-        app = AppTest.from_file(str(APP_PATH)).run()
+        app = AppTest.from_file(str(APP_PATH), default_timeout=15).run()
         assert not app.exception
+        assert next(field for field in app.text_input if field.label == "Default art folder").value == "/artwork/pokemon-mtg-set"
+        assert next(field for field in app.selectbox if field.label == "Image provider").value == "openai"
         assert app.selectbox[0].value == f"{POKEMON_SHEET_ID} (mtg_pokemon_set)"
+        assert next(field for field in app.text_input if field.label == "MTG.Design Laravel Session").value == "prefilled-session"
         assert app.session_state["loaded_source"]["set_metadata"]["set_id"] == "pokemon-mtg-set"
         load.assert_called_once()
         generate.assert_not_called()
-        for step in ("print", "draftmancer", "cubecobra", "cockatrice"):
+        for step in ("print", "notes", "draftmancer", "cubecobra", "cockatrice"):
             assert not app.checkbox(key=f"step_{step}").value
+        assert app.checkbox(key="step_archetypes").value
+        assert app.checkbox(key="step_mana_curve").value
+        app.checkbox(key="step_mana_curve").uncheck().run()
         app.checkbox(key="step_rendering").uncheck().run()
+        app.checkbox(key="step_artwork_r2_upload").uncheck().run()
         load.assert_called_once()
         next(button for button in app.button if button.label == "Run selected steps").click().run(timeout=15)
         assert generate.call_count == 2

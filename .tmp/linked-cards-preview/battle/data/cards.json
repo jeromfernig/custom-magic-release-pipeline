@@ -1,0 +1,98 @@
+[
+  {
+    "id": "RR01",
+    "name": "Test Battle",
+    "record_type": "card",
+    "link_id": "RR01_linked",
+    "link_type": "transform",
+    "set_code": "PKM",
+    "collector_number": "001",
+    "rarity": "rare",
+    "mana_cost": "{3}{R}",
+    "mana_value": null,
+    "colors": [
+      "R"
+    ],
+    "supertypes": [],
+    "card_types": [
+      "Battle"
+    ],
+    "subtypes": [
+      "Siege"
+    ],
+    "type_line": "Battle - Siege",
+    "oracle_text": "When this battle enters, draw a card.",
+    "flavor_text": null,
+    "comment_text": null,
+    "art_prompt": null,
+    "archetype": [
+      "Battle"
+    ],
+    "power": null,
+    "toughness": null,
+    "loyalty": null,
+    "battle_defense": "4",
+    "color_indicator": [],
+    "artist": null,
+    "artwork_url": null,
+    "layout": "normal",
+    "render_profile": "standard",
+    "rendered_image_filename": "001-test-battle.jpg",
+    "artwork_filename": null,
+    "artwork_path": ".tmp/linked-cards-preview/battle-art.png",
+    "artwork_public_url": null,
+    "artwork_sha256": null,
+    "artwork_object_key": null,
+    "rendered_public_url": null,
+    "rendered_image_path": ".cache/mtg_crucible/renders/9c4fd0060bb423c95f80b1210d5b404e4335e7080ac890c7ea2cc1d559b800d2.jpg",
+    "render_cache_key": "9c4fd0060bb423c95f80b1210d5b404e4335e7080ac890c7ea2cc1d559b800d2",
+    "source_row_number": null
+  },
+  {
+    "id": "RR01_linked",
+    "name": "Battle Reward",
+    "record_type": "linked_face",
+    "link_id": null,
+    "link_type": null,
+    "set_code": "PKM",
+    "collector_number": "001",
+    "rarity": "rare",
+    "mana_cost": null,
+    "mana_value": null,
+    "colors": [],
+    "supertypes": [],
+    "card_types": [
+      "Creature"
+    ],
+    "subtypes": [
+      "Dragon"
+    ],
+    "type_line": "Creature - Dragon",
+    "oracle_text": "Flying",
+    "flavor_text": null,
+    "comment_text": null,
+    "art_prompt": null,
+    "archetype": [
+      "Battle"
+    ],
+    "power": "4",
+    "toughness": "4",
+    "loyalty": null,
+    "battle_defense": null,
+    "color_indicator": [],
+    "artist": null,
+    "artwork_url": null,
+    "layout": "normal",
+    "render_profile": "standard",
+    "rendered_image_filename": "001-battle-reward-back.jpg",
+    "artwork_filename": null,
+    "artwork_path": ".tmp/linked-cards-preview/battle-art.png",
+    "artwork_public_url": null,
+    "artwork_sha256": null,
+    "artwork_object_key": null,
+    "rendered_public_url": null,
+    "rendered_image_path": ".cache/mtg_crucible/renders/9c4fd0060bb423c95f80b1210d5b404e4335e7080ac890c7ea2cc1d559b800d2-back.jpg",
+    "render_cache_key": "9c4fd0060bb423c95f80b1210d5b404e4335e7080ac890c7ea2cc1d559b800d2",
+    "source_row_number": null
+  }
+]

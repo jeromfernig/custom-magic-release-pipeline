@@ -11,7 +11,6 @@ from mtg_pipeline.artwork.downloader import ArtworkDownloader
 from mtg_pipeline.artwork.openai_images import ImageGenerationBlocked
 from mtg_pipeline.artwork.preparer import ArtworkPreparer, _generation_prompt
 from mtg_pipeline.config import AppConfig, SourceConfig
-from mtg_pipeline.renderers.mtg_card_renderer import MtgCardRendererClient, card_to_renderer_payload
 from mtg_pipeline.sources.google_sheets import GoogleSheetsSource, _callback_params, _callback_state, _column_letter, _is_invalid_scope_refresh_error, _is_oauth_callback_path, _parse_set_values, _parse_table_values, allow_localhost_oauth_transport
 from mtg_pipeline.sources.sheet_history import format_sheet_option, load_sheet_history, normalize_spreadsheet_id, parse_sheet_option, save_sheet_history, sheet_options
 
@@ -128,41 +127,6 @@ def test_artwork_downloader_mocked(tmp_path: Path) -> None:
     assert paths[0].read_bytes() == b"image"
 
 
-def test_renderer_client_upload_mocked(tmp_path: Path) -> None:
-    config = AppConfig()
-    config.render_profiles["fullart_colorless"] = config.render_profiles["standard"]
-    _, cards = canonicalize(sample_source(), config)
-    card = next(card for card in cards if card.name == "Verdant Seedling")
-    art = tmp_path / "art.png"
-    art.write_bytes(b"art")
-    response = Mock(status_code=200, content=b"png", text="")
-    with patch("mtg_pipeline.renderers.mtg_card_renderer.requests.post", return_value=response) as post:
-        out = MtgCardRendererClient("http://renderer").render_card(card, tmp_path / "card.png", {}, art)
-    assert post.call_args.args[0] == "http://renderer/api/render/upload"
-    assert out.read_bytes() == b"png"
-
-
-def test_renderer_payload_scryfall_like() -> None:
-    config = AppConfig()
-    config.render_profiles["fullart_colorless"] = config.render_profiles["standard"]
-    _, cards = canonicalize(sample_source(), config)
-    card = next(card for card in cards if card.name == "Verdant Seedling")
-    payload = card_to_renderer_payload(card, {"frame": "standard"})
-    assert payload["name"] == "Verdant Seedling"
-    assert payload["type_line"] == "Creature - Plant"
-    assert payload["frame"] == "standard"
-
-
-def test_renderer_payload_uses_comment_text_in_draft_mode() -> None:
-    config = AppConfig()
-    config.render_profiles["fullart_colorless"] = config.render_profiles["standard"]
-    _, cards = canonicalize(sample_source(), config)
-    card = next(card for card in cards if card.name == "Verdant Seedling")
-    payload = card_to_renderer_payload(card, use_comment_as_flavor=True)
-    assert payload["flavor_text"] == "Draft note for Verdant Seedling."
-    assert card.flavor_text == "Flavor for Verdant Seedling."
-
-
 def test_artwork_preparer_generates_from_prompt_and_returns_sheet_update(tmp_path: Path) -> None:
     config = AppConfig()
     config.render_profiles["fullart_colorless"] = config.render_profiles["standard"]
@@ -177,9 +141,9 @@ def test_artwork_preparer_generates_from_prompt_and_returns_sheet_update(tmp_pat
     assert result.output_files[0].name == "verdant-seedling.png"
     assert (tmp_path / "artwork" / "pokemon-mtg-set" / "verdant-seedling.png").exists()
     assert result.generated_updates[0].artwork_path == "artwork/pokemon-mtg-set/verdant-seedling.png"
-    assert result.generated_updates[0].artist_credit == "OpenAI gpt-image-1"
+    assert result.generated_updates[0].artist_credit == "OpenAI gpt-image-2.5-sunburst"
     assert card.artwork_url == result.generated_updates[0].artwork_path
-    assert card.artist == "OpenAI gpt-image-1"
+    assert card.artist == "OpenAI gpt-image-2.5-sunburst"
     assert result.warnings == []
 
 

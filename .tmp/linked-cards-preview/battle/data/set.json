@@ -1,0 +1,12 @@
+{
+  "set_id": "test",
+  "set_name": "Battle Test",
+  "set_code": "PKM",
+  "version": "0.3.0",
+  "release_date": null,
+  "draft_mode": true,
+  "set_icon_mythic": null,
+  "set_icon_rare": null,
+  "set_icon_uncommon": null,
+  "set_icon_common": null
+}

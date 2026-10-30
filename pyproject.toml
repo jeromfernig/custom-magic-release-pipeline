@@ -16,9 +16,13 @@ dependencies = [
   "google-auth>=2.0",
   "google-auth-oauthlib>=1.0",
   "openai>=1.0",
+  "google-genai>=1.66.0",
   "PyYAML>=6.0",
   "reportlab>=4.0",
+  "matplotlib>=3.8",
   "Pillow>=10.1",
+  "boto3>=1.35",
+  "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -28,9 +32,13 @@ dev = [
 
 [project.scripts]
 mtg-pipeline-auth-google = "mtg_pipeline.auth_google:main"
+mtg-pipeline-compare = "mtg_pipeline.compare_versions:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+mtg_pipeline = ["renderers/*.cjs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

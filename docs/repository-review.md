@@ -82,14 +82,12 @@ sheet loading. The custom callback server also needs a timeout/cancel lifecycle.
 Avoid process-wide insecure-transport settings; validate the loopback callback
 and state locally while exchanging the code over HTTPS.
 
-### 6. P2: The example Draftmancer configuration references a nonexistent layout
+### 6. P2: Draftmancer layout reference
 
-`config.example.yaml:62` selects `RareMythic` in `predeterminedLayouts`, but the
-only declared layout is `Default`; `RareMythic` is a sheet. Draftmancer defines
-this setting as layout names. Remove the override or refer to `Default`, and
-validate layout-to-sheet references before exporting. The current test only
-checks a few output strings, so it cannot detect this contract mismatch.
-See the [Draftmancer format specification](https://draftmancer.com/cubeformat.html#settings).
+Resolved: the example no longer sets `predeterminedLayouts` to the
+`RareMythic` sheet. The sole `Default` layout selects that sheet through its
+slot declaration, which is the documented format. The export test verifies
+that the invalid override is absent.
 
 ### 7. P2: Validation can succeed immediately before canonicalization fails
 
@@ -130,9 +128,8 @@ filenames; remove it once callers are confirmed absent.
 - Retry output blocks within the configured limit without changing the user's
   requested subject. Explicit input blocks go directly to a placeholder.
 - Use PNG diagnostic placeholders; keep them outside successful image caches
-  and never write them to Sheets as finished artwork. The renderer's published
-  upload contract lists PNG/JPG/WEBP, not SVG:
-  [renderer API](https://github.com/wingedsheep/mtg-card-renderer#post-apirenderupload).
+  and never write them to Sheets as finished artwork. MTG.Design now receives
+  publicly hosted R2 source artwork instead of local multipart uploads.
 - Show runtime warnings in the UI and logs and preserve them in the manifest.
 - Refresh canonical JSON at finalization so generated paths and filenames
   match the completed run.

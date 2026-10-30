@@ -7,6 +7,11 @@ source:
 
 columns:
   id: "id"
+  record_type: "record_type"
+  link_id: "link_id"
+  link_type: "link_type"
+  battle_defense: "battle_defense"
+  color_indicator: "color_indicator"
   name: "name"
   mana_cost: "mana_cost"
   mana_value: "mana_value"
@@ -18,6 +23,7 @@ columns:
   flavor_text: "flavor_text"
   comment_text: "comment_text"
   art_prompt: "art_prompt"
+  archetype: "archetype"
   power: "power"
   toughness: "toughness"
   loyalty: "loyalty"
@@ -28,17 +34,68 @@ columns:
   render_profile: "render_profile"
   include: "include"
 
-renderer:
-  base_url: "http://localhost:8080"
-  format: "PNG"
-  scale: 3
-  render_limit: 10
+rendering:
+  engine: "crucible" # Switch to mtg_design for the existing remote renderer.
+
+crucible:
+  repository_path: "../mtg-crucible"
+  node_executable: "node" # Also discovers the workspace's optional portable Node.
+  quality: "high"
+  timeout_seconds: 120
+  render_limit: null
+  designer: "Mockingbird"
+
+mtg_design:
+  base_url: "https://mtg.design"
+  render_limit: null
+  timeout_seconds: 120
+  max_attempts: 4
+  request_delay_seconds: 2
+  defaults:
+    language: "EN"
+    designer: "Mockingbird"
+    card-border: "black"
+    watermark: 0
+    stars: 0
+    edit: false
+    text-size: 38
+  text_sizing:
+    enabled: true
+    maximum_size: 38
+    minimum_size: 20
+    estimated_characters_per_line: 60
+    size_decrease_per_line: 1.25
+    warning_below_size: 29
+  postprocess:
+    enabled: true
+    # Coordinates below target MTG.Design's current 744 x 1039 JPEGs.
+    # Rectangle order: [left, top, right, bottom]; right/bottom are exclusive.
+    # Sample is a black background pixel: [x, y]. All coordinates scale with output size.
+    reference_size: [744, 1039]
+    jpeg_quality: 95
+    masks:
+      - name: "card_icon_and_not_for_sale"
+        rectangle: [166, 970, 310, 991]
+        sample: [320, 981]
+
+r2:
+  bucket: "" # Falls back to R2_BUCKET.
+  public_url: "" # Falls back to R2_PUBLIC_URL.
+  artwork_prefix: "artwork"
+  rendered_cards_prefix: "releases"
+
+cache:
+  artwork: ".cache/artwork"
+  mtg_design: ".cache/mtg_design"
+  crucible: ".cache/mtg_crucible"
 
 paths:
   release_root: "releases"
   artwork_root: "artwork"
 
 print:
+  bleed_enabled: true # Print PDF only; fills white corners and adds bleed outside trim.
+  bleed_mm: 2
   page_size: "A4"
   orientation: "landscape"
   card_width_mm: 63
@@ -56,16 +113,20 @@ draft:
       Default:
         weight: 1
         slots:
-          Common: 10
-          Uncommon: 3
-          RareMythic: 1
-    predeterminedLayouts:
-      - RareMythic
+          Common: 8
+          Uncommon: 4
+          RareMythic: 0
 
 images:
+  generation_provider: "openai" # Set to gemini to generate directly with Gemini.
+  default_art_folder: "/artwork/pokemon-mtg-set" # Project-relative, including leading /.
+  gemini_model: "gemini-3.1-flash-image" # Also gemini-3.1-flash-lite-image or gemini-3-pro-image.
+  gemini_aspect_ratio: "3:2"
+  gemini_image_size: "1K"
+  generation_timeout_seconds: 120
   public_image_base_url: "https://example.com/custom-magic/"
-  generated_artist_credit: "OpenAI gpt-image-1"
-  generation_model: "gpt-image-1"
+  generated_artist_credit: "OpenAI gpt-image-2.5-sunburst"
+  generation_model: "gpt-image-2.5-sunburst"
   generation_size: "1536x1024"
   generation_quality: "medium"
   generation_retry_count: 1
@@ -74,6 +135,10 @@ images:
 render_profiles:
   standard:
     renderer_options: {}
+    crucible_options: {}
   fullart_colorless:
+    crucible_options:
+      frameColor: "colorless"
     renderer_options:
-      frame: "fullart_colorless"
+      card-template: "C"
+      card-accent: "C"

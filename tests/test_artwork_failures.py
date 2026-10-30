@@ -69,6 +69,7 @@ def test_actual_sdk_moderation_errors_produce_placeholder(tmp_path, monkeypatch,
     assert "req_regression" in result.warnings[0]
     assert "Stage: output" in result.warnings[0]
     assert result.generated_updates == []
+    assert result.artist_updates[0].artist_credit == "moderation error"
     with Image.open(result.output_files[0]) as image:
         image.load()
         assert image.size == (1590, 1170)
@@ -81,6 +82,19 @@ def test_input_block_uses_placeholder_without_retry(tmp_path):
         result = ArtworkPreparer(AppConfig(), tmp_path).prepare(prompted_cards()[:1])
     assert generate.call_count == 1
     assert "after 1 attempt(s)" in result.warnings[0]
+    assert result.artist_updates[0].artist_credit == "moderation error"
+
+
+def test_existing_moderation_marker_skips_image_generation(tmp_path):
+    card = prompted_cards()[0]
+    card.artist = "moderation error"
+
+    with patch.object(OpenAIImageGenerator, "generate") as generate:
+        result = ArtworkPreparer(AppConfig(), tmp_path).prepare([card])
+
+    generate.assert_not_called()
+    assert result.artist_updates == []
+    assert "skipped because the sheet marks this prompt" in result.warnings[0]
 
 
 def test_unrelated_api_error_retries_then_warns(tmp_path):
@@ -109,44 +123,54 @@ def test_blocked_card_does_not_stop_rendering_or_exports(tmp_path, monkeypatch, 
     uploads = []
     progress = []
 
-    def render(url, **kwargs):
+    def render(params):
         assert progress[-1].startswith("Rendering ")
-        image_file = kwargs["files"]["image"]
-        assert image_file[2] == "image/png"
-        with Image.open(BytesIO(image_file[1].read())) as image:
-            image.verify()
-        uploads.append(image_file[0])
-        return Mock(status_code=200, content=png_bytes())
+        assert params["artwork"].startswith("https://cdn.example/")
+        uploads.append(params["artwork"])
+        buffer = BytesIO()
+        Image.new("RGB", (100, 140), "green").save(buffer, format="JPEG")
+        return buffer.getvalue()
 
     with (
         patch("mtg_pipeline.steps.GoogleSheetsSource.load", return_value=source),
         patch("mtg_pipeline.steps.GoogleSheetsSource.update_generated_artwork_fields") as update,
+        patch("mtg_pipeline.steps.GoogleSheetsSource.update_artist_fields") as update_artist,
         patch("openai.resources.images.Images.generate", side_effect=[error, error, success]) as generate,
-        patch("mtg_pipeline.renderers.mtg_card_renderer.requests.post", side_effect=render),
+        patch("mtg_pipeline.renderers.mtg_design.MtgDesignRendererClient.render", side_effect=render),
+        patch("mtg_pipeline.artwork.r2.CloudflareR2Client.__init__", return_value=None),
+        patch("mtg_pipeline.artwork.r2.CloudflareR2Client.upload_file", return_value=True),
+        patch("mtg_pipeline.artwork.r2.CloudflareR2Client.public_url", side_effect=lambda key: "https://cdn.example/" + key),
         caplog.at_level(logging.INFO, logger="mtg_pipeline"),
     ):
-        context = PipelineContext(config=AppConfig(), progress_callback=progress.append)
-        runner = build_pipeline()
+        config = AppConfig()
+        config.rendering.engine = "mtg_design"
+        config.draft.booster_layout = {"layouts": {"Default": {"weight": 1, "slots": {"Common": 1}}}}
+        context = PipelineContext(config=config, progress_callback=progress.append)
+        runner = build_pipeline(config)
         selected = {step.id for step in runner.steps if step.poc_available}
         result = runner.run(context, selected)
         manifest_path = finalize_manifest(context, selected, result)
 
     assert generate.call_count == 3
     assert update.call_count == 1
+    if isinstance(error, openai.BadRequestError):
+        update_artist.assert_called_once_with("Cards", config.columns, [(3, "moderation error")])
+    else:
+        update_artist.assert_not_called()
     assert len(uploads) == 2
     assert all(result.steps[step].status == "success" for step in selected)
     assert "Using placeholder artwork" in caplog.text
     manifest = json.loads(manifest_path.read_text())
     assert manifest["warnings"] == result.warnings
     saved_cards = json.loads((context.release_dir / "data/cards.json").read_text())
-    assert saved_cards[0]["artwork_path"].startswith("artwork/pokemon-mtg-set/placeholders/")
+    assert saved_cards[0]["artwork_path"].startswith(".cache/artwork/")
     assert saved_cards[0]["artwork_url"] is None
     assert saved_cards[1]["artwork_url"].endswith("verdant-seedling.png")
     pdf = context.release_dir / "print/pkm-0.3.0.pdf"
     assert pdf.read_bytes().startswith(b"%PDF")
     assert not (context.release_dir / "artwork").exists()
-    assert all((tmp_path / card.artwork_path).is_relative_to(tmp_path / "artwork") for card in context.cards)
-    assert any(message.startswith("Step 4/9: Prepare artwork") for message in progress)
+    assert all((tmp_path / card.artwork_path).is_relative_to(tmp_path / ".cache/artwork") for card in context.cards)
+    assert any(message.startswith("Step 4/14: Prepare artwork") for message in progress)
     assert any("Artwork 1/2:" in message for message in progress)
     assert any("creating error placeholder" in message for message in progress)
     assert any(message.startswith("Saving artwork reference") for message in progress)
@@ -167,6 +191,27 @@ def test_placeholder_does_not_prevent_generation_next_run(tmp_path):
     assert result.warnings == []
     assert result.generated_updates[0].artwork_path == "artwork/set/static-burst.png"
     assert result.output_files[0].read_bytes() == png_bytes()
+
+
+def test_missing_art_uses_numbered_shared_placeholders_in_card_order(tmp_path):
+    cards = prompted_cards()
+    for card in cards:
+        card.name = "Bulbasaur"
+        card.subtypes = ["Bulbasaur"]
+        card.artwork_url = None
+        card.art_prompt = None
+    placeholders = tmp_path / "artwork/placeholders"
+    placeholders.mkdir(parents=True)
+    (placeholders / "bulbasaur1.webp").write_bytes(b"first")
+    (placeholders / "bulbasaur2.webp").write_bytes(b"second")
+
+    result = ArtworkPreparer(AppConfig(), tmp_path).prepare(cards)
+
+    assert [path.name for path in result.output_files] == ["bulbasaur1.webp", "bulbasaur2.webp"]
+    assert [card.artwork_path for card in cards] == [
+        "artwork/placeholders/bulbasaur1.webp",
+        "artwork/placeholders/bulbasaur2.webp",
+    ]
 
 
 def test_changed_manual_art_is_used_without_a_release_copy(tmp_path):

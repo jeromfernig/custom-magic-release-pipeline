@@ -6,6 +6,7 @@ from pathlib import Path
 from mtg_pipeline.config import AppConfig
 from mtg_pipeline.images import public_image_url
 from mtg_pipeline.models import CardDefinition, SetDefinition
+from mtg_pipeline.linked_cards import physical_cards, linked_face
 
 CUBECOBRA_HEADER = [
     "name",
@@ -32,7 +33,8 @@ def export_cubecobra(set_def: SetDefinition, cards: list[CardDefinition], config
     with output_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(CUBECOBRA_HEADER)
-        for card in cards:
+        for card in physical_cards(cards):
+            face = linked_face(card, cards) if card.link_type == "transform" else None
             writer.writerow([
                 card.name,
                 "" if card.mana_value is None else card.mana_value,
@@ -46,7 +48,7 @@ def export_cubecobra(set_def: SetDefinition, cards: list[CardDefinition], config
                 "Non-foil",
                 "false",
                 public_image_url(config.images.public_image_base_url, set_def, card),
-                "",
+                public_image_url(config.images.public_image_base_url, set_def, face) if face else "",
                 "",
                 "Generated custom-card row. Validate import manually in CubeCobra.",
                 "",

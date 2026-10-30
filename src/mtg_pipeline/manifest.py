@@ -7,22 +7,25 @@ from pathlib import Path
 
 from mtg_pipeline.models import CardDefinition, SetDefinition
 from mtg_pipeline.pipeline import PipelineRunResult
+from mtg_pipeline.linked_cards import physical_cards
 
 
 def write_manifest(set_def: SetDefinition, cards: list[CardDefinition], selected_steps: set[str], run_result: PipelineRunResult, release_dir: Path) -> Path:
     path = release_dir / "manifest.json"
-    rarity_counts = Counter(card.rarity for card in cards)
+    rarity_counts = Counter(card.rarity for card in physical_cards(cards))
     payload = {
         "set_id": set_def.set_id,
         "set_name": set_def.set_name,
         "set_code": set_def.set_code,
         "version": set_def.version,
         "build_timestamp": datetime.now(timezone.utc).isoformat(),
-        "card_count": len(cards),
+        "card_count": len(physical_cards(cards)),
+        "record_count": len(cards),
         "counts_by_rarity": dict(rarity_counts),
         "selected_pipeline_steps": sorted(selected_steps),
         "steps": {step_id: result.model_dump(mode="json") for step_id, result in run_result.steps.items()},
         "warnings": run_result.warnings,
+        **run_result.statistics,
         "generated_artifact_paths": [str(path) for path in run_result.output_files],
     }
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import base64
+from io import BytesIO
 from pathlib import Path
+
+from PIL import Image
+
+from mtg_pipeline.artwork.generation import log_generation, write_new_image
 
 
 class ImageGenerationBlocked(RuntimeError):
-    """Raised when OpenAI rejects an image generation attempt for safety."""
+    """Raised when an image provider rejects generation for safety."""
 
     def __init__(self, message: str, stage: str | None = None) -> None:
         super().__init__(message)
@@ -19,6 +24,13 @@ class OpenAIImageGenerator:
         self.quality = quality
 
     def generate(self, prompt: str, output_path: Path) -> Path:
+        try:
+            return self._generate(prompt, output_path)
+        except Exception:
+            log_generation("openai", self.model, "error")
+            raise
+
+    def _generate(self, prompt: str, output_path: Path) -> Path:
         try:
             from openai import OpenAI
         except ImportError as exc:
@@ -37,14 +49,18 @@ class OpenAIImageGenerator:
             if is_moderation_blocked(exc):
                 raise ImageGenerationBlocked(moderation_blocked_message(exc), moderation_stage(exc)) from exc
             raise
-        image_base64 = result.data[0].b64_json
+        image_base64 = result.data[0].b64_json if result.data else None
         if not image_base64:
             raise RuntimeError("OpenAI image generation did not return image data.")
         image_bytes = base64.b64decode(image_base64, validate=True)
-        temporary_path = output_path.with_suffix(".tmp")
-        temporary_path.write_bytes(image_bytes)
-        temporary_path.replace(output_path)
-        return output_path
+        with Image.open(BytesIO(image_bytes)) as image:
+            image.load()
+            dimensions = list(image.size)
+        path = write_new_image(output_path, image_bytes)
+        usage = getattr(result, "usage", None)
+        log_generation("openai", self.model, "success", dimensions=dimensions,
+                       usage=usage.model_dump(mode="json") if usage else None)
+        return path
 
 
 def _error_body(exc: Exception) -> dict:

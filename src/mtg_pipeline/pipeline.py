@@ -26,6 +26,8 @@ class PipelineContext:
     warnings: list[str] = field(default_factory=list)
     project_root: Path = field(default_factory=Path.cwd)
     progress_callback: Callable[[str], None] | None = None
+    mtg_design_session: str = field(default="", repr=False)
+    statistics: dict = field(default_factory=dict)
 
     def report_progress(self, message: str) -> None:
         LOGGER.info("%s", message)
@@ -44,6 +46,7 @@ class PipelineRunResult(BaseModel):
     steps: dict[str, StepResult] = Field(default_factory=dict)
     output_files: list[Path] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    statistics: dict = Field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -62,13 +65,16 @@ class PipelineRunner:
         self.steps = steps
         self.by_id = {step.id: step for step in steps}
 
-    def availability(self, selected: set[str]) -> dict[str, tuple[bool, str]]:
+    def availability(self, selected: set[str], unavailable: dict[str, str] | None = None) -> dict[str, tuple[bool, str]]:
         states: dict[str, tuple[bool, str]] = {}
         for step in self.steps:
+            if step.id in (unavailable or {}):
+                states[step.id] = (False, unavailable[step.id])
+                continue
             if not step.poc_available:
                 states[step.id] = (False, "Future/full-pipeline step is not implemented in the PoC.")
                 continue
-            missing = [dep for dep in step.dependencies if dep not in selected]
+            missing = [dep for dep in step.dependencies if dep not in selected or not states.get(dep, (False, ""))[0]]
             if missing:
                 names = ", ".join(self.by_id[dep].display_name for dep in missing)
                 states[step.id] = (False, f"Requires selected step: {names}.")
@@ -107,4 +113,5 @@ class PipelineRunner:
                 for warning in context.warnings[warning_count:]:
                     LOGGER.warning("%s", warning)
         result.warnings.extend(context.warnings)
+        result.statistics = context.statistics
         return result

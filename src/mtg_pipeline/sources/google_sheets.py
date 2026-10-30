@@ -199,6 +199,28 @@ class GoogleSheetsSource:
             body={"valueInputOption": "USER_ENTERED", "data": data},
         ).execute()
 
+    def update_artist_fields(self, worksheet: str, mapping: ColumnMapping, updates: list[tuple[int, str]]) -> None:
+        if not updates:
+            return
+        creds = self._load_credentials()
+        service = self._build_service(creds)
+        spreadsheet_id = normalize_spreadsheet_id(self.config.spreadsheet_id)
+        headers = self._read_values(service, spreadsheet_id, f"{worksheet}!1:1")
+        if not headers:
+            raise RuntimeError(f"Cannot update artist field: worksheet '{worksheet}' has no header row.")
+        header_to_column = {str(header).strip(): index + 1 for index, header in enumerate(headers[0])}
+        if mapping.artist not in header_to_column:
+            raise RuntimeError(f"Cannot update artist field: missing column '{mapping.artist}' in '{worksheet}'.")
+        artist_column = _column_letter(header_to_column[mapping.artist])
+        data = [
+            {"range": f"{worksheet}!{artist_column}{row_number}", "values": [[artist_credit]]}
+            for row_number, artist_credit in updates
+        ]
+        service.spreadsheets().values().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={"valueInputOption": "USER_ENTERED", "data": data},
+        ).execute()
+
     def _load_credentials(self) -> Any:
         try:
             from google.auth.transport.requests import Request
